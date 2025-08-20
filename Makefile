@@ -10,11 +10,11 @@ $(DESTDIR)/%: %
 
 MSGFMT ?= msgfmt
 
-JSFILES = js/PasskeyPlugin.js \
-          js/data/Configuration.js \
+JSFILES = js/data/Configuration.js \
           js/data/ResponseHandler.js \
           js/settings/Category.js \
-          js/settings/GeneralSettingsWidget.js
+          js/settings/GeneralSettingsWidget.js \
+          js/PasskeyPlugin.js
 
 COPYFILES = manifest.xml config.php \
 	$(wildcard resources/css/*.css) \
