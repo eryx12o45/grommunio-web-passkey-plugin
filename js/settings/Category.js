@@ -2,11 +2,11 @@ Ext.namespace('Zarafa.plugins.passkey.settings');
 
 /**
  * @class Zarafa.plugins.passkey.settings.Category
- * @extends Zarafa.settings.ui.Category
+ * @extends Zarafa.settings.ui.SettingsCategory
  * 
  * Settings category for the Passkey plugin
  */
-Zarafa.plugins.passkey.settings.Category = Ext.extend(Zarafa.settings.ui.Category, {
+Zarafa.plugins.passkey.settings.Category = Ext.extend(Zarafa.settings.ui.SettingsCategory, {
 
     /**
      * @constructor
@@ -16,13 +16,12 @@ Zarafa.plugins.passkey.settings.Category = Ext.extend(Zarafa.settings.ui.Categor
         config = config || {};
 
         Ext.applyIf(config, {
-            title: _('Passkey Authentication'),
-            categoryIndex: 9999,
+            title: dgettext('plugin_passkey', 'Passkey Authentication'),
+            categoryIndex: 1,
             iconCls: 'icon_passkey_category',
             items: [{
-                xtype: 'Zarafa.plugins.passkey.settings.GeneralSettingsWidget',
-                settingsContext: config.settingsContext
-            }]
+                xtype: 'Zarafa.plugins.passkey.generalsettingswidget'
+            }, container.populateInsertionPoint('context.settings.category.passkey', this)]
         });
 
         Zarafa.plugins.passkey.settings.Category.superclass.constructor.call(this, config);

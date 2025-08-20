@@ -16,7 +16,7 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
         config = config || {};
 
         Ext.applyIf(config, {
-            title: _('Passkey Settings'),
+            title: dgettext('plugin_passkey', 'Configuration passkey authentication'),
             layout: 'form',
             items: this.createSettingsItems()
         });
@@ -306,4 +306,4 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
     }
 });
 
-Ext.reg('Zarafa.plugins.passkey.settings.GeneralSettingsWidget', Zarafa.plugins.passkey.settings.GeneralSettingsWidget);
+Ext.reg('Zarafa.plugins.passkey.generalsettingswidget', Zarafa.plugins.passkey.settings.GeneralSettingsWidget);
