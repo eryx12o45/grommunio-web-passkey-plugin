@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<!DOCTYPE plugin SYSTEM "manifest.dtd">
+<plugin version="2">
+    <info>
+        <version>1.0</version>
+        <name>passkey</name>
+        <title>Passkey Authentication</title>
+        <description>Plugin to support passkey authentication using WebAuthn</description>
+    </info>
+    <config>
+        <configfile>config.php</configfile>
+    </config>
+    <components>
+        <component>
+            <files>
+                <client>
+                    <clientfile load="release">js/passkey.js</clientfile>
+                    <clientfile load="debug">js/passkey-debug.js</clientfile>
+                    <clientfile load="source">js/data/Configuration.js</clientfile>
+                    <clientfile load="source">js/data/ResponseHandler.js</clientfile>
+                    <clientfile load="source">js/PasskeyPlugin.js</clientfile>
+                    <clientfile load="source">js/settings/Category.js</clientfile>
+                    <clientfile load="source">js/settings/GeneralSettingsWidget.js</clientfile>
+                </client>
+                <server>
+                    <serverfile>php/plugin.passkey.php</serverfile>
+                    <serverfile type="module" module="passkeymodule">php/class.passkeymodule.php</serverfile>
+                </server>
+                <resources>
+                    <resourcefile load="release">resources/css/passkey.css</resourcefile>
+                </resources>
+            </files>
+        </component>
+    </components>
+</plugin>

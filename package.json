@@ -1,0 +1,25 @@
+{
+  "name": "passkeyplugin",
+  "version": "1.0.0",
+  "description": "Plugin for Grommunio-Web to utilize WebAuthn passkey authentication",
+  "devDependencies": {
+    "eslint": "^9.32.0"
+  },
+  "dependencies": {
+    "terser": "^5.43.1",
+    "tokenizr": "1.7.0"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "lint": "eslint js/**/*.js"
+  },
+  "keywords": [
+    "grommunio",
+    "webauthn",
+    "passkey",
+    "authentication",
+    "plugin"
+  ],
+  "author": "Grommunio Team",
+  "license": "AGPL-3.0"
+}
