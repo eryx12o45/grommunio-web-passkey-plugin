@@ -1,6 +1,33 @@
 <?php
 
+require_once __DIR__ . "/vendor/autoload.php";
 require_once __DIR__ . "/class.passkeydata.settings.php";
+require_once __DIR__ . "/class.passkeycredentialrepository.php";
+
+use Webauthn\Server;
+use Webauthn\PublicKeyCredentialCreationOptions;
+use Webauthn\PublicKeyCredentialRequestOptions;
+use Webauthn\PublicKeyCredentialSource;
+use Webauthn\PublicKeyCredentialSourceRepository;
+use Webauthn\AuthenticatorAttestationResponse;
+use Webauthn\AuthenticatorAssertionResponse;
+use Webauthn\PublicKeyCredentialLoader;
+use Webauthn\AuthenticatorAttestationResponseValidator;
+use Webauthn\AuthenticatorAssertionResponseValidator;
+use Webauthn\PublicKeyCredentialRpEntity;
+use Webauthn\PublicKeyCredentialUserEntity;
+use Webauthn\PublicKeyCredentialParameters;
+use Webauthn\PublicKeyCredentialDescriptor;
+use Webauthn\AuthenticatorSelectionCriteria;
+use Webauthn\AttestationConveyancePreference;
+use Webauthn\UserVerificationRequirement;
+use Webauthn\AuthenticatorAttachment;
+use Cose\Algorithm\Manager;
+use Cose\Algorithm\Signature\ECDSA\ES256;
+use Cose\Algorithm\Signature\RSA\RS256;
+use Psr\Http\Message\ServerRequestInterface;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7Server\ServerRequestCreator;
 
 /**
  * Passkey Module for handling WebAuthn operations
@@ -142,13 +169,27 @@ class PasskeyModule extends Module
             return false;
         }
 
-        // Create credential record
+        // Validate the attestation response using WebAuthn library
+        $publicKeyCredentialSource = $this->validateAttestationResponse($credentialData);
+        
+        if (!$publicKeyCredentialSource) {
+            $this->sendFeedback(false, array(
+                'type' => ERROR_GENERAL,
+                'info' => array(
+                    'message' => dgettext('plugin_passkey', 'Invalid attestation response')
+                )
+            ));
+            return false;
+        }
+
+        // Create credential record with validated data
         $credential = array(
             'id' => $credentialData['id'],
             'name' => $name,
             'rawId' => $credentialData['rawId'],
-            'publicKey' => $this->extractPublicKey($credentialData['response']['attestationObject']),
-            'signCount' => 0,
+            'publicKey' => base64_encode($publicKeyCredentialSource->getCredentialPublicKey()),
+            'signCount' => $publicKeyCredentialSource->getCounter(),
+            'userHandle' => $publicKeyCredentialSource->getUserHandle(),
             'created' => time()
         );
 
@@ -226,8 +267,8 @@ class PasskeyModule extends Module
             return false;
         }
 
-        // Verify the assertion (simplified verification)
-        if ($this->verifyAssertion($assertionData, $credential)) {
+        // Verify the assertion using WebAuthn library
+        if ($this->validateAssertionResponse($assertionData, $credential)) {
             $this->sendFeedback(true, array(
                 'success' => true,
                 'message' => dgettext('plugin_passkey', 'Authentication successful')
@@ -301,37 +342,218 @@ class PasskeyModule extends Module
     }
 
     /**
-     * Extract public key from attestation object (simplified)
-     * @param string $attestationObject Base64URL encoded attestation object
-     * @return string Base64URL encoded public key
+     * Get WebAuthn Server instance
+     * @return Server
      */
-    private function extractPublicKey($attestationObject)
+    private function getWebAuthnServer()
     {
-        // This is a simplified implementation
-        // In a production environment, you would use a proper CBOR decoder
-        // and WebAuthn library to extract the public key
-        return $attestationObject; // Placeholder
+        $config = PasskeyData::getWebAuthnConfig();
+        
+        // Create Relying Party entity
+        $rpEntity = new PublicKeyCredentialRpEntity(
+            $config['rp_name'],
+            $config['rp_id']
+        );
+        
+        // Create credential source repository
+        $credentialRepository = new PasskeyCredentialRepository();
+        
+        // Create algorithm manager
+        $algorithmManager = new Manager();
+        $algorithmManager->add(new ES256());
+        $algorithmManager->add(new RS256());
+        
+        // Create server
+        return new Server(
+            $rpEntity,
+            $credentialRepository,
+            $algorithmManager
+        );
     }
 
     /**
-     * Verify WebAuthn assertion (simplified)
-     * @param array $assertionData Assertion data
-     * @param array $credential Stored credential
-     * @return boolean Verification result
+     * Get user entity for WebAuthn
+     * @return PublicKeyCredentialUserEntity
      */
-    private function verifyAssertion($assertionData, $credential)
+    private function getUserEntity()
     {
-        // This is a simplified implementation
-        // In a production environment, you would:
-        // 1. Verify the client data JSON
-        // 2. Verify the authenticator data
-        // 3. Verify the signature using the stored public key
-        // 4. Check the signature counter
+        $username = $GLOBALS['mapisession']->getUserName();
+        $userId = hash('sha256', $username); // Create consistent user ID
         
-        // For now, we'll do basic validation
-        return isset($assertionData['response']['signature']) && 
-               isset($assertionData['response']['authenticatorData']) &&
-               $assertionData['id'] === $credential['id'];
+        return new PublicKeyCredentialUserEntity(
+            $username,
+            $userId,
+            $username
+        );
+    }
+
+    /**
+     * Validate WebAuthn attestation response
+     * @param array $credentialData Credential data from client
+     * @return PublicKeyCredentialSource|null
+     */
+    private function validateAttestationResponse($credentialData)
+    {
+        try {
+            $server = $this->getWebAuthnServer();
+            
+            // Create PSR-7 request
+            $psr17Factory = new Psr17Factory();
+            $creator = new ServerRequestCreator(
+                $psr17Factory,
+                $psr17Factory,
+                $psr17Factory,
+                $psr17Factory
+            );
+            
+            // Convert credential data to JSON for PSR-7 request
+            $jsonData = json_encode($credentialData);
+            $request = $creator->fromGlobals()
+                ->withBody($psr17Factory->createStream($jsonData))
+                ->withHeader('Content-Type', 'application/json');
+            
+            // Load the public key credential
+            $publicKeyCredentialLoader = new PublicKeyCredentialLoader();
+            $publicKeyCredential = $publicKeyCredentialLoader->load($jsonData);
+            
+            // Get the response
+            $authenticatorAttestationResponse = $publicKeyCredential->getResponse();
+            
+            if (!$authenticatorAttestationResponse instanceof AuthenticatorAttestationResponse) {
+                return null;
+            }
+            
+            // Create creation options (this should be stored from the registration initiation)
+            $userEntity = $this->getUserEntity();
+            $credentialParameters = [
+                new PublicKeyCredentialParameters('public-key', -7), // ES256
+                new PublicKeyCredentialParameters('public-key', -257), // RS256
+            ];
+            
+            $creationOptions = new PublicKeyCredentialCreationOptions(
+                $server->getPublicKeyCredentialRpEntity(),
+                $userEntity,
+                random_bytes(32), // Challenge should be stored from registration initiation
+                $credentialParameters
+            );
+            
+            // Validate the attestation response
+            $validator = new AuthenticatorAttestationResponseValidator();
+            $publicKeyCredentialSource = $validator->check(
+                $authenticatorAttestationResponse,
+                $creationOptions,
+                $request
+            );
+            
+            return $publicKeyCredentialSource;
+            
+        } catch (Exception $e) {
+            error_log("[passkey] Attestation validation error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Validate WebAuthn assertion response
+     * @param array $assertionData Assertion data from client
+     * @param array $storedCredential Stored credential data
+     * @return boolean
+     */
+    private function validateAssertionResponse($assertionData, $storedCredential)
+    {
+        try {
+            $server = $this->getWebAuthnServer();
+            
+            // Create PSR-7 request
+            $psr17Factory = new Psr17Factory();
+            $creator = new ServerRequestCreator(
+                $psr17Factory,
+                $psr17Factory,
+                $psr17Factory,
+                $psr17Factory
+            );
+            
+            // Convert assertion data to JSON for PSR-7 request
+            $jsonData = json_encode($assertionData);
+            $request = $creator->fromGlobals()
+                ->withBody($psr17Factory->createStream($jsonData))
+                ->withHeader('Content-Type', 'application/json');
+            
+            // Load the public key credential
+            $publicKeyCredentialLoader = new PublicKeyCredentialLoader();
+            $publicKeyCredential = $publicKeyCredentialLoader->load($jsonData);
+            
+            // Get the response
+            $authenticatorAssertionResponse = $publicKeyCredential->getResponse();
+            
+            if (!$authenticatorAssertionResponse instanceof AuthenticatorAssertionResponse) {
+                return false;
+            }
+            
+            // Create request options (this should be stored from the authentication initiation)
+            $allowedCredentials = [
+                new PublicKeyCredentialDescriptor(
+                    'public-key',
+                    base64_decode(strtr($storedCredential['rawId'], '-_', '+/'))
+                )
+            ];
+            
+            $requestOptions = new PublicKeyCredentialRequestOptions(
+                random_bytes(32), // Challenge should be stored from authentication initiation
+                60000, // Timeout
+                $server->getPublicKeyCredentialRpEntity()->getId(),
+                $allowedCredentials,
+                UserVerificationRequirement::PREFERRED
+            );
+            
+            // Get the stored credential source
+            $credentialRepository = new PasskeyCredentialRepository();
+            $publicKeyCredentialSource = $credentialRepository->findOneByCredentialId(
+                $publicKeyCredential->getRawId()
+            );
+            
+            if (!$publicKeyCredentialSource) {
+                return false;
+            }
+            
+            // Validate the assertion response
+            $validator = new AuthenticatorAssertionResponseValidator();
+            $publicKeyCredentialSource = $validator->check(
+                $publicKeyCredentialSource,
+                $authenticatorAssertionResponse,
+                $requestOptions,
+                $request,
+                null // User handle
+            );
+            
+            // Update the credential with new counter value
+            $this->updateCredentialCounter($publicKeyCredentialSource);
+            
+            return true;
+            
+        } catch (Exception $e) {
+            error_log("[passkey] Assertion validation error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update credential counter after successful authentication
+     * @param PublicKeyCredentialSource $credentialSource
+     */
+    private function updateCredentialCounter($credentialSource)
+    {
+        $credentials = PasskeyData::getCredentialsArray();
+        
+        for ($i = 0; $i < count($credentials); $i++) {
+            if ($credentials[$i]['rawId'] === base64_encode($credentialSource->getCredentialId())) {
+                $credentials[$i]['signCount'] = $credentialSource->getCounter();
+                $credentials[$i]['lastUsed'] = time();
+                break;
+            }
+        }
+        
+        PasskeyData::setCredentials(json_encode($credentials));
     }
 
     /**

@@ -59,14 +59,12 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
                 xtype: 'fieldset',
                 title: _('Registered Passkeys'),
                 ref: 'passkeysFieldset',
-                disabled: true,
                 items: [{
                     xtype: 'button',
                     text: _('Register New Passkey'),
                     ref: '../registerButton',
                     handler: this.onRegisterPasskey,
-                    scope: this,
-                    disabled: true
+                    scope: this
                 }, {
                     xtype: 'grid',
                     ref: '../passkeysGrid',
@@ -81,13 +79,14 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
                     }, {
                         header: _('Created'),
                         dataIndex: 'created',
-                        width: 120,
-                        renderer: Ext.util.Format.dateRenderer('Y-m-d H:i')
+                        width: 300,
+                        renderer: this.timeRenderer
                     }, {
                         xtype: 'actioncolumn',
                         width: 50,
                         items: [{
-                            icon: 'resources/iconsets/fugue/cross.png',
+                            xtype: 'button',
+                            iconCls: 'icon_delete',
                             tooltip: _('Delete Passkey'),
                             handler: this.onDeletePasskey,
                             scope: this
@@ -414,7 +413,19 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
      */
     listPasskeys: function(callback, scope) {
         this.sendRequest('list', {}, callback, scope);
-    }
+    },
+
+    /**
+	 * Renderer for the time column. Adds a recurrence icon and a private icon if applicable
+	 *
+	 * @param {Mixed} value The subject of the appointment
+	 * @private
+	 */
+	timeRenderer: function (value)
+	{
+        let dateValue = new Date(value * 1000);
+		return dateValue.toLocaleString();
+	}
 });
 
 Ext.reg('Zarafa.plugins.passkey.generalsettingswidget', Zarafa.plugins.passkey.settings.GeneralSettingsWidget);
