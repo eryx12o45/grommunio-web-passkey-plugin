@@ -12,7 +12,7 @@ class PasskeyData
      */
     public static function isActivated()
     {
-        return $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/activate', false);
+        return $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/activate');
     }
 
     /**

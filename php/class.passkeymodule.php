@@ -44,6 +44,12 @@ class PasskeyModule extends Module
                         case "list":
                             $result = $this->listPasskeys($action);
                             break;
+                        case "activate":
+                            $result = $this->activate();
+                            break;
+                        case "isactivated":
+                            $result = $this->isActivated();
+                            break;
                         default:
                             $this->sendFeedback(false, array(
                                 'type' => ERROR_GENERAL,
@@ -53,13 +59,39 @@ class PasskeyModule extends Module
                             ));
                     }
                 } catch (Exception $e) {
-                    error_log("[passkey]: " . $e->getMessage());
                     $this->sendFeedback(false, array(
                         'type' => ERROR_GENERAL,
                         'info' => array(
                             'message' => dgettext('plugin_passkey', 'An error occurred: ') . $e->getMessage()
                         )
                     ));
+                }
+            } else {
+                if (isset($actionType)) {
+                    try {
+                        switch ($actionType) {
+                            case "activate":
+                                $result = $this->activate();
+                                break;
+                            case "isactivated":
+                                $result = $this->isActivated();
+                                break;
+                            default:
+                                $this->sendFeedback(false, array(
+                                    'type' => ERROR_GENERAL,
+                                    'info' => array(
+                                        'message' => dgettext('plugin_passkey', 'Unknown action')
+                                    )
+                                ));
+                        }
+                    } catch (Exception $e) {
+                        $this->sendFeedback(false, array(
+                            'type' => ERROR_GENERAL,
+                            'info' => array(
+                                'message' => dgettext('plugin_passkey', 'An error occurred: ') . $e->getMessage()
+                            )
+                        ));
+                    }
                 }
             }
         }
@@ -117,8 +149,7 @@ class PasskeyModule extends Module
             'rawId' => $credentialData['rawId'],
             'publicKey' => $this->extractPublicKey($credentialData['response']['attestationObject']),
             'signCount' => 0,
-            'created' => time(),
-            'lastUsed' => null
+            'created' => time()
         );
 
         // Add credential to user's passkeys
@@ -197,10 +228,6 @@ class PasskeyModule extends Module
 
         // Verify the assertion (simplified verification)
         if ($this->verifyAssertion($assertionData, $credential)) {
-            // Update last used timestamp
-            $credential['lastUsed'] = time();
-            $this->updateCredential($credential);
-
             $this->sendFeedback(true, array(
                 'success' => true,
                 'message' => dgettext('plugin_passkey', 'Authentication successful')
@@ -261,8 +288,7 @@ class PasskeyModule extends Module
             $safeCredentials[] = array(
                 'id' => $cred['id'],
                 'name' => $cred['name'],
-                'created' => $cred['created'],
-                'lastUsed' => $cred['lastUsed']
+                'created' => $cred['created']
             );
         }
 
@@ -330,11 +356,49 @@ class PasskeyModule extends Module
      * Send feedback to client
      * @param boolean $success Success status
      * @param array $data Response data
+     * @param boolean $addResponseDataToBus Whether to add response data to bus
      */
-    private function sendFeedback($success, $data)
+    public function sendFeedback($success = false, $data = [], $addResponseDataToBus = true)
     {
         $response = array_merge(array('success' => $success), $data);
         $this->addActionData("passkey", $response);
+        if ($addResponseDataToBus) {
+            $GLOBALS["bus"]->addData($this->getResponseData());
+        }
+    }
+
+    /**
+     * Toggle activate/deactivate two-factor authentication
+     *
+     * @access private
+     * @return boolean
+     * @throws Exception
+     */
+    private function activate(): bool
+    {
+        $isActivated = PasskeyData::isActivated();
+        PasskeyData::setActivate(!$isActivated);
+        $response = array();
+        $response['isActivated'] = !$isActivated;
+        $this->addActionData("activate", $response);
         $GLOBALS["bus"]->addData($this->getResponseData());
+        return true;
+    }
+
+    /**
+     * Send if two-factor authentication is activated
+     *
+     * @access private
+     * @return boolean
+     * @throws Exception
+     */
+    private function isActivated(): bool
+    {
+        $isActivated = PasskeyData::isActivated();
+        $response = array();
+        $response['isActivated'] = $isActivated;
+        $this->addActionData("isactivated", $response);
+        $GLOBALS["bus"]->addData($this->getResponseData());
+        return true;
     }
 }

@@ -8,12 +8,25 @@ Ext.namespace('Zarafa.plugins.passkey.data');
  */
 Zarafa.plugins.passkey.data.Configuration = {
 
+    activate: undefined,
     /**
      * Initialize the configuration
      */
     init: function() {
         // Plugin configuration initialization
         this.webauthnSupported = this.checkWebAuthnSupport();
+        let a = new Zarafa.plugins.passkey.data.ResponseHandler({
+            successCallback: this.gotIsActivated.createDelegate(this)
+        });
+        container.getRequest().singleRequest("passkeymodule", "isactivated", {}, a);
+    },
+
+    gotIsActivated: function (a) {
+        this.activate = a.isActivated;
+    },
+
+    isActivated: function (a) {
+        return this.activate;
     },
 
     /**
@@ -29,7 +42,7 @@ Zarafa.plugins.passkey.data.Configuration = {
      * @return {Object} WebAuthn configuration object
      */
     getWebAuthnConfig: function() {
-        var settingsModel = container.getSettingsModel();
+        let settingsModel = container.getSettingsModel();
         return {
             rpId: settingsModel.get('zarafa/v1/plugins/passkey/rp_id') || window.location.hostname,
             rpName: settingsModel.get('zarafa/v1/plugins/passkey/rp_name') || 'Grommunio',
@@ -44,7 +57,7 @@ Zarafa.plugins.passkey.data.Configuration = {
      * @return {Object} User information object
      */
     getUserInfo: function() {
-        var userStore = container.getUser();
+        let userStore = container.getUser();
         return {
             id: new TextEncoder().encode(userStore.getUserName()),
             name: userStore.getUserName(),
@@ -66,9 +79,9 @@ Zarafa.plugins.passkey.data.Configuration = {
      * @return {String} Base64URL encoded string
      */
     arrayBufferToBase64Url: function(buffer) {
-        var bytes = new Uint8Array(buffer);
-        var binary = '';
-        for (var i = 0; i < bytes.byteLength; i++) {
+        let bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
         return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
@@ -80,13 +93,13 @@ Zarafa.plugins.passkey.data.Configuration = {
      * @return {ArrayBuffer} Decoded buffer
      */
     base64UrlToArrayBuffer: function(base64url) {
-        var base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
         while (base64.length % 4) {
             base64 += '=';
         }
-        var binary = atob(base64);
-        var bytes = new Uint8Array(binary.length);
-        for (var i = 0; i < binary.length; i++) {
+        let binary = atob(base64);
+        let bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
             bytes[i] = binary.charCodeAt(i);
         }
         return bytes.buffer;
@@ -97,7 +110,7 @@ Zarafa.plugins.passkey.data.Configuration = {
      * @return {Boolean} True if enabled
      */
     isPasskeyEnabled: function() {
-        var settingsModel = container.getSettingsModel();
+        let settingsModel = container.getSettingsModel();
         return settingsModel.get('zarafa/v1/plugins/passkey/enable') === true;
     },
 
@@ -106,7 +119,7 @@ Zarafa.plugins.passkey.data.Configuration = {
      * @return {Boolean} True if activated
      */
     isPasskeyActivated: function() {
-        var settingsModel = container.getSettingsModel();
+        let settingsModel = container.getSettingsModel();
         return settingsModel.get('zarafa/v1/plugins/passkey/activate') === true;
     }
 };

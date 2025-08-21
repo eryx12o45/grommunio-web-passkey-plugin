@@ -35,7 +35,7 @@ const PLUGIN_PASSKEY_RP_ID = '';
 /**
  * Relying Party (RP) Name - human readable name for your organization
  */
-const PLUGIN_PASSKEY_RP_NAME = 'Grommunio';
+const PLUGIN_PASSKEY_RP_NAME = 'Grommunio Web';
 
 /**
  * Timeout for WebAuthn operations in milliseconds

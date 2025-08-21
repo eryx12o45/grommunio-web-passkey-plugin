@@ -18,104 +18,89 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
         Ext.applyIf(config, {
             title: dgettext('plugin_passkey', 'Configuration passkey authentication'),
             layout: 'form',
-            items: this.createSettingsItems()
+            items: [{
+                xtype: 'displayfield',
+                fieldLabel: '',
+                value: _('Passkeys provide a secure and convenient way to authenticate without passwords. You can register multiple passkeys and use them to log into your account.'),
+                htmlEncode: false,
+                cls: 'zarafa-settings-widget-info'
+            }, {
+                xtype: 'fieldset',
+                title: _('WebAuthn Support'),
+                ref: 'webauthnFieldset',
+                items: [{
+                    xtype: 'displayfield',
+                    ref: '../webauthnStatus',
+                    fieldLabel: _('Browser Support'),
+                    value: this.getWebAuthnSupportText()
+                }]
+            }, {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: "<hr />" + dgettext("plugin_passkey", "Activate or deactivate passkey authentication.") + "<br />&nbsp;"
+            }, {
+                xtype: "displayfield",
+                fieldLabel: dgettext("plugin_passkey", "Current status"),
+                value: this.getStatus(),
+                htmlEncode: true,
+                ref: "status",
+                width: 250
+            }, {
+                xtype: "displayfield",
+                hideLabel: true,
+                value: ""
+            }, {
+                xtype: "button",
+                text: dgettext("plugin_passkey", "Activation/Deactivation"),
+                handler: this.activate,
+                scope: this,
+                width: 250
+            },{
+                xtype: 'fieldset',
+                title: _('Registered Passkeys'),
+                ref: 'passkeysFieldset',
+                disabled: true,
+                items: [{
+                    xtype: 'button',
+                    text: _('Register New Passkey'),
+                    ref: '../registerButton',
+                    handler: this.onRegisterPasskey,
+                    scope: this,
+                    disabled: true
+                }, {
+                    xtype: 'grid',
+                    ref: '../passkeysGrid',
+                    height: 200,
+                    store: new Ext.data.ArrayStore({
+                        fields: ['id', 'name', 'created']
+                    }),
+                    columns: [{
+                        header: _('Name'),
+                        dataIndex: 'name',
+                        width: 150
+                    }, {
+                        header: _('Created'),
+                        dataIndex: 'created',
+                        width: 120,
+                        renderer: Ext.util.Format.dateRenderer('Y-m-d H:i')
+                    }, {
+                        xtype: 'actioncolumn',
+                        width: 50,
+                        items: [{
+                            icon: 'resources/iconsets/fugue/cross.png',
+                            tooltip: _('Delete Passkey'),
+                            handler: this.onDeletePasskey,
+                            scope: this
+                        }]
+                    }],
+                    viewConfig: {
+                        emptyText: _('No passkeys registered')
+                    }
+                }]
+            }]
         });
 
         Zarafa.plugins.passkey.settings.GeneralSettingsWidget.superclass.constructor.call(this, config);
-    },
-
-    /**
-     * Create the settings form items
-     * @return {Array} Array of form items
-     */
-    createSettingsItems: function() {
-        return [{
-            xtype: 'displayfield',
-            fieldLabel: '',
-            value: _('Passkeys provide a secure and convenient way to authenticate without passwords. You can register multiple passkeys and use them to log into your account.'),
-            htmlEncode: false,
-            cls: 'zarafa-settings-widget-info'
-        }, {
-            xtype: 'checkbox',
-            name: 'zarafa/v1/plugins/passkey/enable',
-            fieldLabel: _('Enable Passkey Plugin'),
-            boxLabel: _('Enable the passkey authentication plugin'),
-            ref: 'enableCheckbox',
-            listeners: {
-                check: this.onEnableChange,
-                scope: this
-            }
-        }, {
-            xtype: 'checkbox',
-            name: 'zarafa/v1/plugins/passkey/activate',
-            fieldLabel: _('Activate Passkey Authentication'),
-            boxLabel: _('Use passkey authentication for login'),
-            ref: 'activateCheckbox',
-            disabled: true,
-            listeners: {
-                check: this.onActivateChange,
-                scope: this
-            }
-        }, {
-            xtype: 'fieldset',
-            title: _('WebAuthn Support'),
-            ref: 'webauthnFieldset',
-            items: [{
-                xtype: 'displayfield',
-                ref: '../webauthnStatus',
-                fieldLabel: _('Browser Support'),
-                value: this.getWebAuthnSupportText()
-            }]
-        }, {
-            xtype: 'fieldset',
-            title: _('Registered Passkeys'),
-            ref: 'passkeysFieldset',
-            disabled: true,
-            items: [{
-                xtype: 'button',
-                text: _('Register New Passkey'),
-                ref: '../registerButton',
-                handler: this.onRegisterPasskey,
-                scope: this,
-                disabled: true
-            }, {
-                xtype: 'grid',
-                ref: '../passkeysGrid',
-                height: 200,
-                store: new Ext.data.ArrayStore({
-                    fields: ['id', 'name', 'created', 'lastUsed']
-                }),
-                columns: [{
-                    header: _('Name'),
-                    dataIndex: 'name',
-                    width: 150
-                }, {
-                    header: _('Created'),
-                    dataIndex: 'created',
-                    width: 120,
-                    renderer: Ext.util.Format.dateRenderer('Y-m-d H:i')
-                }, {
-                    header: _('Last Used'),
-                    dataIndex: 'lastUsed',
-                    width: 120,
-                    renderer: function(value) {
-                        return value ? Ext.util.Format.date(new Date(value), 'Y-m-d H:i') : _('Never');
-                    }
-                }, {
-                    xtype: 'actioncolumn',
-                    width: 50,
-                    items: [{
-                        icon: 'resources/iconsets/fugue/cross.png',
-                        tooltip: _('Delete Passkey'),
-                        handler: this.onDeletePasskey,
-                        scope: this
-                    }]
-                }],
-                viewConfig: {
-                    emptyText: _('No passkeys registered')
-                }
-            }]
-        }];
     },
 
     /**
@@ -123,12 +108,9 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
      */
     initEvents: function() {
         Zarafa.plugins.passkey.settings.GeneralSettingsWidget.superclass.initEvents.call(this);
-        
+
         // Load passkeys when widget is initialized
         this.loadPasskeys();
-        
-        // Update UI based on current settings
-        this.updateUI();
     },
 
     /**
@@ -136,41 +118,11 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
      * @return {String} Support status text
      */
     getWebAuthnSupportText: function() {
-        var config = Zarafa.plugins.passkey.data.Configuration;
+        let config = Zarafa.plugins.passkey.data.Configuration;
         if (config.checkWebAuthnSupport()) {
             return '<span style="color: green;">' + _('Supported') + '</span>';
         } else {
             return '<span style="color: red;">' + _('Not supported - Please use a modern browser') + '</span>';
-        }
-    },
-
-    /**
-     * Handle enable checkbox change
-     * @param {Ext.form.Checkbox} checkbox The checkbox
-     * @param {Boolean} checked Whether checked
-     */
-    onEnableChange: function(checkbox, checked) {
-        this.activateCheckbox.setDisabled(!checked);
-        this.passkeysFieldset.setDisabled(!checked);
-        this.registerButton.setDisabled(!checked || !this.activateCheckbox.getValue());
-        
-        if (!checked) {
-            this.activateCheckbox.setValue(false);
-        }
-    },
-
-    /**
-     * Handle activate checkbox change
-     * @param {Ext.form.Checkbox} checkbox The checkbox
-     * @param {Boolean} checked Whether checked
-     */
-    onActivateChange: function(checkbox, checked) {
-        this.registerButton.setDisabled(!checked);
-        
-        if (checked && !Zarafa.plugins.passkey.data.Configuration.checkWebAuthnSupport()) {
-            Ext.Msg.alert(_('WebAuthn Not Supported'), _('Your browser does not support WebAuthn. Please use a modern browser to use passkey authentication.'));
-            checkbox.setValue(false);
-            return;
         }
     },
 
@@ -195,11 +147,11 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
      * @param {String} name Name for the passkey
      */
     registerNewPasskey: function(name) {
-        var config = Zarafa.plugins.passkey.data.Configuration.getWebAuthnConfig();
-        var userInfo = Zarafa.plugins.passkey.data.Configuration.getUserInfo();
-        var challenge = Zarafa.plugins.passkey.data.Configuration.generateChallenge();
+        let config = Zarafa.plugins.passkey.data.Configuration.getWebAuthnConfig();
+        let userInfo = Zarafa.plugins.passkey.data.Configuration.getUserInfo();
+        let challenge = Zarafa.plugins.passkey.data.Configuration.generateChallenge();
 
-        var createOptions = {
+        let createOptions = {
             publicKey: {
                 challenge: challenge,
                 rp: {
@@ -227,7 +179,7 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
         }
 
         navigator.credentials.create(createOptions).then(function(credential) {
-            var credentialData = {
+            let credentialData = {
                 id: credential.id,
                 rawId: Zarafa.plugins.passkey.data.Configuration.arrayBufferToBase64Url(credential.rawId),
                 type: credential.type,
@@ -237,7 +189,7 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
                 }
             };
 
-            Zarafa.plugins.passkey.data.ResponseHandler.registerPasskey(credentialData, name, function(success, message) {
+            this.registerPasskey(credentialData, name, function(success, message) {
                 if (success) {
                     Ext.Msg.alert(_('Success'), message);
                     this.loadPasskeys();
@@ -257,13 +209,13 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
      * @param {Number} colIndex Column index
      */
     onDeletePasskey: function(grid, rowIndex, colIndex) {
-        var record = grid.getStore().getAt(rowIndex);
-        var credentialId = record.get('id');
-        var name = record.get('name');
+        let record = grid.getStore().getAt(rowIndex);
+        let credentialId = record.get('id');
+        let name = record.get('name');
 
         Ext.Msg.confirm(_('Delete Passkey'), String.format(_('Are you sure you want to delete the passkey "{0}"?'), name), function(btn) {
             if (btn === 'yes') {
-                Zarafa.plugins.passkey.data.ResponseHandler.deletePasskey(credentialId, function(success, message) {
+                this.deletePasskey(credentialId, function(success, message) {
                     if (success) {
                         Ext.Msg.alert(_('Success'), message);
                         this.loadPasskeys();
@@ -279,11 +231,11 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
      * Load passkeys from server
      */
     loadPasskeys: function() {
-        Zarafa.plugins.passkey.data.ResponseHandler.listPasskeys(function(success, data) {
+        this.listPasskeys(function(success, data) {
             if (success) {
-                var store = this.passkeysGrid.getStore();
+                let store = this.passkeysGrid.getStore();
                 store.removeAll();
-                
+
                 if (Ext.isArray(data)) {
                     Ext.each(data, function(passkey) {
                         store.add(new store.recordType(passkey));
@@ -293,16 +245,175 @@ Zarafa.plugins.passkey.settings.GeneralSettingsWidget = Ext.extend(Zarafa.settin
         }, this);
     },
 
+    getStatus: function () {
+        return (Zarafa.plugins.passkey.data.Configuration.isActivated() ? dgettext("plugin_passkey", "Activated") : dgettext("plugin_passkey", "Deactivated"));
+    },
+
+    activate: function () {
+        container.getRequest().singleRequest("passkeymodule", "activate", {}, new Zarafa.plugins.passkey.data.ResponseHandler({
+            successCallback: this.setStatus.createDelegate(this)
+        }));
+    },
+
+    setStatus: function (a) {
+        Zarafa.plugins.passkey.data.Configuration.gotIsActivated(a);
+        this.status.setValue(this.getStatus());
+        container.getNotifier().notify("info.saved", dgettext("plugin_passkey", "Passkey authentication") + ": " + this.getStatus(),
+            dgettext("plugin_passkey", "Current status") + ": " + this.getStatus());
+    },
+
     /**
-     * Update UI based on current settings
+     * Handle passkey registration response
+     * @param {Object} response Server response
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
      */
-    updateUI: function() {
-        var enabled = this.enableCheckbox.getValue();
-        var activated = this.activateCheckbox.getValue();
-        
-        this.activateCheckbox.setDisabled(!enabled);
-        this.passkeysFieldset.setDisabled(!enabled);
-        this.registerButton.setDisabled(!enabled || !activated);
+    handleRegistrationResponse: function(response, callback, scope) {
+        if (response && response.success) {
+            if (callback) {
+                callback.call(scope || this, true, response.message || _('Passkey registered successfully'));
+            }
+        } else {
+            let errorMsg = response && response.message ? response.message : _('Failed to register passkey');
+            if (callback) {
+                callback.call(scope || this, false, errorMsg);
+            }
+        }
+    },
+
+    /**
+     * Handle passkey authentication response
+     * @param {Object} response Server response
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    handleAuthenticationResponse: function(response, callback, scope) {
+        if (response && response.success) {
+            if (callback) {
+                callback.call(scope || this, true, response.message || _('Authentication successful'));
+            }
+        } else {
+            let errorMsg = response && response.message ? response.message : _('Authentication failed');
+            if (callback) {
+                callback.call(scope || this, false, errorMsg);
+            }
+        }
+    },
+
+    /**
+     * Handle passkey deletion response
+     * @param {Object} response Server response
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    handleDeletionResponse: function(response, callback, scope) {
+        if (response && response.success) {
+            if (callback) {
+                callback.call(scope || this, true, response.message || _('Passkey deleted successfully'));
+            }
+        } else {
+            let errorMsg = response && response.message ? response.message : _('Failed to delete passkey');
+            if (callback) {
+                callback.call(scope || this, false, errorMsg);
+            }
+        }
+    },
+
+    /**
+     * Handle passkey list response
+     * @param {Object} response Server response
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    handleListResponse: function(response, callback, scope) {
+        if (response && response.success) {
+            let passkeys = response.passkeys || [];
+            if (callback) {
+                callback.call(scope || this, true, passkeys);
+            }
+        } else {
+            let errorMsg = response && response.message ? response.message : _('Failed to load passkeys');
+            if (callback) {
+                callback.call(scope || this, false, errorMsg);
+            }
+        }
+    },
+
+    /**
+     * Send request to server
+     * @param {String} action Action to perform
+     * @param {Object} data Request data
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    sendRequest: function(action, data, callback, scope) {
+        let requestData = Ext.apply({
+            zarafa_action: 'passkey',
+            passkey_action: action
+        }, data || {});
+
+        container.getRequest().singleRequest(
+            'passkeymodule',
+            'passkey',
+            requestData,
+            new Zarafa.core.data.AbstractResponseHandler({
+                doPasskey: function(response) {
+                    switch (action) {
+                        case 'register':
+                            this.handleRegistrationResponse(response, callback, scope);
+                            break;
+                        case 'authenticate':
+                            this.handleAuthenticationResponse(response, callback, scope);
+                            break;
+                        case 'delete':
+                            this.handleDeletionResponse(response, callback, scope);
+                            break;
+                        case 'list':
+                            this.handleListResponse(response, callback, scope);
+                            break;
+                        default:
+                            if (callback) {
+                                callback.call(scope || this, false, _('Unknown action'));
+                            }
+                    }
+                }.createDelegate(this)
+            })
+        );
+    },
+
+    /**
+     * Register a new passkey
+     * @param {Object} credentialData WebAuthn credential data
+     * @param {String} name Friendly name for the passkey
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    registerPasskey: function(credentialData, name, callback, scope) {
+        this.sendRequest('register', {
+            credential_data: JSON.stringify(credentialData),
+            name: name
+        }, callback, scope);
+    },
+
+    /**
+     * Delete a passkey
+     * @param {String} credentialId Credential ID to delete
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    deletePasskey: function(credentialId, callback, scope) {
+        this.sendRequest('delete', {
+            credential_id: credentialId
+        }, callback, scope);
+    },
+
+    /**
+     * Get list of user's passkeys
+     * @param {Function} callback Callback function
+     * @param {Object} scope Callback scope
+     */
+    listPasskeys: function(callback, scope) {
+        this.sendRequest('list', {}, callback, scope);
     }
 });
 

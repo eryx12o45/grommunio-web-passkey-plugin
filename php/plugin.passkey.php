@@ -40,25 +40,35 @@ class PluginPasskey extends Plugin
                         $GLOBALS["settings"]->saveSettings();
                     }
 
-                    if (PLUGIN_PASSKEY_ALWAYS_ACTIVATED)
+                    if (PLUGIN_PASSKEY_ALWAYS_ACTIVATED) {
                         PasskeyData::setActivate(true);
+                    }
 
-                    // Check, if user has enabled plugin and has activated passkey authentication
-                    if (!$GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/enable')
-                        || !PasskeyData::isActivated())
+                    // Check if plugin is enabled and activated
+                    $pluginEnabled = $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/enable', PLUGIN_PASSKEY_ENABLE);
+                    $passkeyActivated = PasskeyData::isActivated();
+                    
+                    if (!$pluginEnabled || !$passkeyActivated) {
                         break;
+                    }
 
-                    // Check, if WebAuthn authentication is already done (example: attachment-upload)
+                    // Check if WebAuthn authentication is already done
                     if (array_key_exists('passkeyLoggedOn', $_SESSION) && $_SESSION['passkeyLoggedOn']) {
-
-                        // Login successful - save or remove challenge
+                        // Login successful - clean up
                         if (isset($_SESSION['passkeyChallenge'])) {
                             unset($_SESSION['passkeyChallenge']);
                         }
                         break;
                     }
 
-                    // Save data in session for WebAuthn authentication with login.php and logon.php
+                    // Check if user has any registered passkeys
+                    $credentials = PasskeyData::getCredentialsArray();
+
+                    if (empty($credentials)) {
+                        break; // No passkeys registered, use normal login
+                    }
+
+                    // Save data in session for WebAuthn authentication
                     $encryptionStore = EncryptionStore::getInstance();
                     $encryptionStore->add('passkeyCredentials', PasskeyData::getCredentials());
                     $_SESSION['passkeyEcho']['msgAuthenticatePasskey'] = dgettext('plugin_passkey', 'Authenticate with your passkey');
@@ -67,14 +77,14 @@ class PluginPasskey extends Plugin
                     $_SESSION['passkeyEcho']['butCancel'] = dgettext('plugin_passkey', 'Cancel');
                     $_SESSION['passkeyEcho']['butUsePassword'] = dgettext('plugin_passkey', 'Use password instead');
 
-                    // Call passkey login page
-                    header('Location: plugins/passkey/php/login.php', true, 303); // delete GLOBALS, go to passkey page
-                    exit; // don't execute header-function in index.php
+                    // Redirect to passkey login page
+                    header('Location: plugins/passkey/php/login.php', true, 303);
+                    exit;
 
                 } catch (Exception $e) {
                     $mess = $e->getFile() . ":" . $e->getLine() . "<br />" . $e->getMessage();
-                    error_log("[passkey]: " . $mess);
-                    die($mess);
+                    error_log("[passkey]: Exception: " . $mess);
+                    // Don't die on error, just continue with normal login
                 }
         }
     }
