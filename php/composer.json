@@ -2,7 +2,7 @@
   "minimum-stability": "stable",
   "prefer-stable": true,
   "require": {
-    "web-auth/webauthn-lib": "^4.0",
+    "web-auth/webauthn-lib": "^5.2",
     "web-auth/cose-lib": "^4.0",
     "spomky-labs/cbor-php": "^3.0",
     "nyholm/psr7": "^1.5",
