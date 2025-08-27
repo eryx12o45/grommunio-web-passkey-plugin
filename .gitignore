@@ -2,14 +2,4 @@
 node_modules
 plugin
 passkey
-.DS_Store
-package-lock.json
-vendor/
-composer.lock
-*.log
-*.tmp
-.vscode/
-.phpunit.result.cache
-coverage/
-build/
-dist/
+
