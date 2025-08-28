@@ -12,6 +12,9 @@ class PasskeyData
      */
     public static function isActivated()
     {
+        if (!isset($GLOBALS["settings"]) || $GLOBALS["settings"] === null) {
+            return false; // Default to not activated when settings unavailable
+        }
         return $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/activate');
     }
 
@@ -22,6 +25,9 @@ class PasskeyData
      */
     public static function setActivate($activate)
     {
+        if (!isset($GLOBALS["settings"]) || $GLOBALS["settings"] === null) {
+            return; // Cannot save settings when settings object unavailable
+        }
         $GLOBALS["settings"]->set('zarafa/v1/plugins/passkey/activate', $activate);
         $GLOBALS["settings"]->saveSettings();
     }
@@ -33,7 +39,25 @@ class PasskeyData
      */
     public static function getCredentials()
     {
-        return $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/credentials', '');
+        // Try EncryptionStore first (primary storage for grommunio webapp)
+        if (class_exists('EncryptionStore')) {
+            try {
+                $encryptionStore = EncryptionStore::getInstance();
+                $credentials = $encryptionStore->get('passkeyCredentials', '');
+                if (!empty($credentials)) {
+                    return $credentials;
+                }
+            } catch (Exception $e) {
+                error_log("[passkey] Could not access EncryptionStore for reading: " . $e->getMessage());
+            }
+        }
+        
+        // Fallback to settings if available
+        if (isset($GLOBALS["settings"]) && $GLOBALS["settings"] !== null) {
+            return $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/credentials', '');
+        }
+        
+        return ''; // Return empty string when no storage available
     }
 
     /**
@@ -43,8 +67,21 @@ class PasskeyData
      */
     public static function setCredentials($credentials)
     {
-        $GLOBALS["settings"]->set('zarafa/v1/plugins/passkey/credentials', $credentials);
-        $GLOBALS["settings"]->saveSettings();
+        // Store in EncryptionStore (primary storage for grommunio webapp)
+        if (class_exists('EncryptionStore')) {
+            try {
+                $encryptionStore = EncryptionStore::getInstance();
+                $encryptionStore->add('passkeyCredentials', $credentials);
+            } catch (Exception $e) {
+                error_log("[passkey] Could not store in EncryptionStore: " . $e->getMessage());
+            }
+        }
+        
+        // Also store in settings as backup if available
+        if (isset($GLOBALS["settings"]) && $GLOBALS["settings"] !== null) {
+            $GLOBALS["settings"]->set('zarafa/v1/plugins/passkey/credentials', $credentials);
+            $GLOBALS["settings"]->saveSettings();
+        }
     }
 
     /**
@@ -117,8 +154,20 @@ class PasskeyData
      */
     public static function getWebAuthnConfig()
     {
+        // Check if settings global is available
+        if (!isset($GLOBALS["settings"]) || $GLOBALS["settings"] === null) {
+            // Return default configuration when settings are not available
+            return [
+                'rp_id' => $_SERVER['HTTP_HOST'] ?? 'localhost',
+                'rp_name' => 'Grommunio',
+                'timeout' => 60000,
+                'user_verification' => 'preferred',
+                'authenticator_attachment' => null
+            ];
+        }
+        
         return [
-            'rp_id' => $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/rp_id', ''),
+            'rp_id' => $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/rp_id', $_SERVER['HTTP_HOST'] ?? 'localhost'),
             'rp_name' => $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/rp_name', 'Grommunio'),
             'timeout' => $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/timeout', 60000),
             'user_verification' => $GLOBALS["settings"]->get('zarafa/v1/plugins/passkey/user_verification', 'preferred'),

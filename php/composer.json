@@ -2,10 +2,11 @@
   "minimum-stability": "stable",
   "prefer-stable": true,
   "require": {
-    "web-auth/webauthn-lib": "^4.0",
-    "web-auth/cose-lib": "^4.0",
-    "spomky-labs/cbor-php": "^3.0",
-    "nyholm/psr7": "^1.5",
-    "nyholm/psr7-server": "^1.0"
+    "web-auth/webauthn-lib": "^5.2.2",
+    "web-auth/cose-lib": "^4.4.2",
+    "spomky-labs/cbor-php": "^3.1.1",
+    "nyholm/psr7": "^1.8.2",
+    "nyholm/psr7-server": "^1.1.0",
+    "symfony/uid": "^6.0|^7.0"
   }
 }
