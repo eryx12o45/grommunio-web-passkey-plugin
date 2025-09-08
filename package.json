@@ -6,7 +6,7 @@
     "eslint": "^9.32.0"
   },
   "dependencies": {
-    "terser": "^5.43.1",
+    "terser": "^5.44.0",
     "tokenizr": "1.7.0"
   },
   "scripts": {
