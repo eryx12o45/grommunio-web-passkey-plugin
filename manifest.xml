@@ -2,7 +2,7 @@
 <!DOCTYPE plugin SYSTEM "manifest.dtd">
 <plugin version="2">
     <info>
-        <version>1.0</version>
+        <version>1.0.1</version>
         <name>passkey</name>
         <title>Passkey Authentication</title>
         <description>Plugin to support passkey authentication using WebAuthn</description>
