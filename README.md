@@ -15,7 +15,7 @@ A WebAuthn passkey authentication plugin for Grommunio Web that enables users to
 * Execute ``npm install``
 * Execute ```make DESTDIR=./passkey```
 * Copy folder ```passkey``` to your Grommunio Webmail's plugin folder ``[default: /usr/share/grommunio-web/plugins]``
-* As default the plugin is enabled for each user, but needs to be activated seperately in the plugin configuration
+* As default the plugin is enabled for each user, but needs to be activated separately in the plugin configuration
 
 
 ## Configuration
