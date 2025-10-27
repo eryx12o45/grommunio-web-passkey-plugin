@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "terser": "^5.44.0",
-    "tokenizr": "1.7.2"
+    "tokenizr": "2.1.0"
   },
   "scripts": {
     "build": "node build.js",
