@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "description": "Plugin for Grommunio-Web to utilize WebAuthn passkey authentication",
   "devDependencies": {
-    "eslint": "^9.38.0"
+    "eslint": "^9.39.0"
   },
   "dependencies": {
     "terser": "^5.44.0",
